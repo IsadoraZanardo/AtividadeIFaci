@@ -30,15 +30,21 @@ const statusStyle: Record<DeviceStatus, string> = {
   alerta: "bg-amber-100 text-amber-700",
 };
 
-const formatarDispositivo = (item: any, index: number): Dispositivo => {
+const formatarDispositivo = (
+  item: any,
+  index: number
+): Dispositivo => {
   if (item?.sensores) {
     return {
       id: item.id || `EQP-${String(index + 1).padStart(3, "0")}`,
       nome: item.nome || `Dispositivo ${index + 1}`,
-      statusDispositivo: item.statusDispositivo || (item.conexaoAtiva ? "online" : "offline"),
+      statusDispositivo:
+        item.statusDispositivo ||
+        (item.conexaoAtiva ? "online" : "offline"),
       conexaoAtiva: Boolean(item.conexaoAtiva),
       travaLiberada: Boolean(item.travaLiberada),
       ultimaAtualizacao: item.ultimaAtualizacao,
+
       sensores: {
         temperatura: Number(item.sensores.temperatura ?? 0),
         pressao: Number(item.sensores.pressao ?? 0),
@@ -51,11 +57,19 @@ const formatarDispositivo = (item: any, index: number): Dispositivo => {
 
   return {
     id: item?.Codigo || `EQP-${String(index + 1).padStart(3, "0")}`,
-    nome: item?.Sensor ? `Dispositivo ${item.Sensor}` : `Dispositivo ${index + 1}`,
+
+    nome: item?.Sensor
+      ? `Dispositivo ${item.Sensor}`
+      : `Dispositivo ${index + 1}`,
+
     statusDispositivo: item?.Status ? "online" : "offline",
+
     conexaoAtiva: Boolean(item?.Status),
+
     travaLiberada: false,
+
     ultimaAtualizacao: new Date().toISOString(),
+
     sensores: {
       temperatura: item?.Sensor === "Temperatura" ? 25 : 0,
       pressao: item?.Sensor === "Pressão" ? 2.4 : 0,
@@ -66,19 +80,30 @@ const formatarDispositivo = (item: any, index: number): Dispositivo => {
   };
 };
 
-const valorBooleano = (valor: boolean, textoAtivo = "Ativo", textoInativo = "Inativo") =>
-  valor ? textoAtivo : textoInativo;
+const valorBooleano = (
+  valor: boolean,
+  textoAtivo = "Ativo",
+  textoInativo = "Inativo"
+) => (valor ? textoAtivo : textoInativo);
 
 export default function Home() {
-  const [dadosBackend, setDadosBackend] = useState<Dispositivo[]>([]);
+  const [dadosBackend, setDadosBackend] = useState<
+    Dispositivo[]
+  >([]);
+
   const [carregando, setCarregando] = useState(true);
-  const [acaoEmAndamento, setAcaoEmAndamento] = useState<string | null>(null);
+
+  const [acaoEmAndamento, setAcaoEmAndamento] =
+    useState<string | null>(null);
 
   const pegaDados = useCallback(async () => {
     try {
       setCarregando(true);
+
       const resposta = await fetch(`${API_URL}/devices`);
+
       const respostaJSON = await resposta.json();
+
       const lista = Array.isArray(respostaJSON)
         ? respostaJSON.map(formatarDispositivo)
         : [];
@@ -92,13 +117,23 @@ export default function Home() {
   }, []);
 
   const deletaTudo = async () => {
+    const confirmar = window.confirm(
+      "Tem certeza que deseja deletar TODOS os dispositivos?"
+    );
+
+    if (!confirmar) {
+      return;
+    }
+
     try {
       setAcaoEmAndamento("limpar");
+
       await fetch(`${API_URL}/destroy`, {
         method: "DELETE",
       });
 
       setDadosBackend([]);
+
       alert("Dados excluídos com sucesso!");
     } catch (error) {
       console.error("Falha na requisição:", error);
@@ -107,23 +142,31 @@ export default function Home() {
     }
   };
 
-  const alternarAcao = async (id: string, tipo: "trava" | "conexao") => {
+  const alternarAcao = async (
+    id: string,
+    tipo: "trava" | "conexao"
+  ) => {
     try {
       setAcaoEmAndamento(`${tipo}-${id}`);
+
       await fetch(`${API_URL}/devices/${id}/${tipo}`, {
         method: "PATCH",
       });
+
       await pegaDados();
     } catch (error) {
-      console.error("Falha ao atualizar dispositivo:", error);
+      console.error(
+        "Falha ao atualizar dispositivo:",
+        error
+      );
     } finally {
       setAcaoEmAndamento(null);
     }
   };
 
-useEffect(() => {
-  pegaDados();
-}, [pegaDados]);
+  useEffect(() => {
+    pegaDados();
+  }, [pegaDados]);
 
   return (
     <main className="min-h-screen bg-slate-100 text-slate-900">
@@ -133,31 +176,67 @@ useEffect(() => {
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
               ATIVIDADE - INTERFACE INDUSTRIAIS
             </p>
-            <h1 className="text-3xl md:text-4xl font-bold">Tela Equipamentos</h1>
+
+            <h1 className="text-3xl md:text-4xl font-bold">
+              Tela de Equipamentos
+            </h1>
           </div>
 
           <div className="flex gap-3">
-            <Botao nome="🔄️" estilo="secundario" onClick={pegaDados} disabled={carregando} />
-            <Botao nome="🗑️" estilo="deletar" onClick={deletaTudo} disabled={acaoEmAndamento === "limpar"} />
+            <Botao
+              nome="🔄️"
+              estilo="secundario"
+              onClick={pegaDados}
+              disabled={carregando}
+            />
+
+            <Botao
+              nome="🗑️"
+              estilo="deletar"
+              onClick={deletaTudo}
+              disabled={acaoEmAndamento === "limpar"}
+            />
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-4 mb-8">
+        <div className="grid gap-4 md:grid-cols-3 mb-8">
           <Card>
-            <p className="text-sm text-slate-500">Dispositivos</p>
-            <p className="text-3xl font-bold mt-2">{dadosBackend.length}</p>
+            <p className="text-sm text-slate-500">
+              Dispositivos
+            </p>
+
+            <p className="text-3xl font-bold mt-2">
+              {dadosBackend.length}
+            </p>
           </Card>
+
           <Card>
-            <p className="text-sm text-slate-500">Online</p>
-            <p className="text-3xl font-bold mt-2">{dadosBackend.filter((item) => item.statusDispositivo === "online").length}</p>
+            <p className="text-sm text-slate-500">
+              Relés Ligados
+            </p>
+
+            <p className="text-3xl font-bold mt-2">
+              {
+                dadosBackend.filter(
+                  (item) =>
+                    item.statusDispositivo === "online"
+                ).length
+              }
+            </p>
           </Card>
+
           <Card>
-            <p className="text-sm text-slate-500">Em alerta</p>
-            <p className="text-3xl font-bold mt-2">{dadosBackend.filter((item) => item.statusDispositivo === "alerta").length}</p>
-          </Card>
-          <Card>
-            <p className="text-sm text-slate-500">Conexões ativas</p>
-            <p className="text-3xl font-bold mt-2">{dadosBackend.filter((item) => item.conexaoAtiva).length}</p>
+            <p className="text-sm text-slate-500">
+              Conexões Ligadas
+            </p>
+
+            <p className="text-3xl font-bold mt-2">
+              {
+                dadosBackend.filter(
+                  (item) => item.conexaoAtiva
+                ).length
+              }
+            </p>
           </Card>
         </div>
 
@@ -169,8 +248,13 @@ useEffect(() => {
 
         {!carregando && dadosBackend.length === 0 ? (
           <Card>
-            <p className="font-semibold">Nenhum dispositivo encontrado :(</p>
-            <p className="text-slate-500 mt-2">Necessário enviar os dados para o backend</p>
+            <p className="font-semibold">
+              Nenhum dispositivo encontrado :(
+            </p>
+
+            <p className="text-slate-500 mt-2">
+              Necessário enviar os dados para o backend
+            </p>
           </Card>
         ) : null}
 
@@ -180,62 +264,142 @@ useEffect(() => {
               <div className="flex flex-col gap-5">
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div>
-                    <p className="text-sm text-slate-500">ID do dispositivo</p>
-                    <p className="font-bold text-lg">{item.id}</p>
+                    <p className="text-sm text-slate-500">
+                      ID do dispositivo
+                    </p>
+
+                    <p className="font-bold text-lg">
+                      {item.id}
+                    </p>
                   </div>
 
-                  <span className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold w-fit ${statusStyle[item.statusDispositivo]}`}>
+                  <span
+                    className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold w-fit ${statusStyle[item.statusDispositivo]}`}
+                  >
                     {item.statusDispositivo.toUpperCase()}
                   </span>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                   <div className="rounded-xl bg-slate-50 p-4">
-                    <p className="text-sm text-slate-500">Temperatura</p>
-                    <p className="text-2xl font-bold">{item.sensores.temperatura.toFixed(1)} °C</p>
+                    <p className="text-sm text-slate-500">
+                      Temperatura
+                    </p>
+
+                    <p className="text-2xl font-bold">
+                      {item.sensores.temperatura.toFixed(1)} °C
+                    </p>
                   </div>
+
                   <div className="rounded-xl bg-slate-50 p-4">
-                    <p className="text-sm text-slate-500">Pressão</p>
-                    <p className="text-2xl font-bold">{item.sensores.pressao.toFixed(1)} bar</p>
+                    <p className="text-sm text-slate-500">
+                      Pressão
+                    </p>
+
+                    <p className="text-2xl font-bold">
+                      {item.sensores.pressao.toFixed(1)} bar
+                    </p>
                   </div>
+
                   <div className="rounded-xl bg-slate-50 p-4">
-                    <p className="text-sm text-slate-500">Umidade</p>
-                    <p className="text-2xl font-bold">{item.sensores.umidade.toFixed(0)} %</p>
+                    <p className="text-sm text-slate-500">
+                      Umidade
+                    </p>
+
+                    <p className="text-2xl font-bold">
+                      {item.sensores.umidade.toFixed(0)} %
+                    </p>
                   </div>
+
                   <div className="rounded-xl bg-slate-50 p-4">
-                    <p className="text-sm text-slate-500">Sensor de presença</p>
-                    <p className="text-xl font-bold">{valorBooleano(item.sensores.sensorPresenca, "Detectado", "Ausente")}</p>
+                    <p className="text-sm text-slate-500">
+                      Sensor de presença
+                    </p>
+
+                    <p className="text-xl font-bold">
+                      {valorBooleano(
+                        item.sensores.sensorPresenca,
+                        "Ativo",
+                        "Inativo"
+                      )}
+                    </p>
                   </div>
+
                   <div className="rounded-xl bg-slate-50 p-4">
-                    <p className="text-sm text-slate-500">Relé de segurança</p>
-                    <p className="text-xl font-bold">{valorBooleano(item.sensores.releSeguranca, "Ativado", "Desativado")}</p>
+                    <p className="text-sm text-slate-500">
+                      Relé de segurança
+                    </p>
+
+                    <p className="text-xl font-bold">
+                      {valorBooleano(
+                        item.sensores.releSeguranca,
+                        "Ativado",
+                        "Desativado"
+                      )}
+                    </p>
                   </div>
+
                   <div className="rounded-xl bg-slate-50 p-4">
-                    <p className="text-sm text-slate-500">Conexão</p>
-                    <p className="text-xl font-bold">{valorBooleano(item.conexaoAtiva, "Online", "Offline")}</p>
+                    <p className="text-sm text-slate-500">
+                      Conexão
+                    </p>
+
+                    <p className="text-xl font-bold">
+                      {valorBooleano(
+                        item.conexaoAtiva,
+                        "Online",
+                        "Offline"
+                      )}
+                    </p>
                   </div>
                 </div>
 
                 <div className="rounded-xl border border-slate-200 p-4">
-                  <p className="text-sm text-slate-500 mb-3">Controles</p>
+                  <p className="text-sm text-slate-500 mb-3">
+                    Controles
+                  </p>
+
                   <div className="flex flex-wrap gap-3">
                     <Botao
-                      nome={item.travaLiberada ? "Travar device" : "Liberar device"}
+                      nome={
+                        item.travaLiberada
+                          ? "Desligar"
+                          : "Ligar"
+                      }
                       estilo="confirmar"
-                      onClick={() => alternarAcao(item.id, "trava")}
-                      disabled={acaoEmAndamento === `trava-${item.id}`}
+                      onClick={() =>
+                        alternarAcao(item.id, "trava")
+                      }
+                      disabled={
+                        acaoEmAndamento === `trava-${item.id}`
+                      }
                     />
+
                     <Botao
-                      nome={item.conexaoAtiva ? "Travar conexão" : "Liberar conexão"}
+                      nome={
+                        item.conexaoAtiva
+                          ? "Desligar"
+                          : "Ligar"
+                      }
                       estilo="secundario"
-                      onClick={() => alternarAcao(item.id, "conexao")}
-                      disabled={acaoEmAndamento === `conexao-${item.id}`}
+                      onClick={() =>
+                        alternarAcao(item.id, "conexao")
+                      }
+                      disabled={
+                        acaoEmAndamento ===
+                        `conexao-${item.id}`
+                      }
                     />
                   </div>
                 </div>
 
                 <p className="text-sm text-slate-500">
-                  Última atualização: {item.ultimaAtualizacao ? new Date(item.ultimaAtualizacao).toLocaleString("pt-BR") : "Sem registro"}
+                  Última atualização:{" "}
+                  {item.ultimaAtualizacao
+                    ? new Date(
+                        item.ultimaAtualizacao
+                      ).toLocaleString("pt-BR")
+                    : "Sem registro"}
                 </p>
               </div>
             </Card>

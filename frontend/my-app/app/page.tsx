@@ -34,44 +34,35 @@ const formatarDispositivo = (
   item: any,
   index: number
 ): Dispositivo => {
-  if (item?.sensores) {
+  const dadosSensores = item?.sensores || item?.Sensors || item?.sensor;
+
+  if (item && dadosSensores) {
     return {
-      // Ajustado de padStart(3, "0") para padStart(4, "0")
-      id: item.id || String(index + 1).padStart(4, "0"),
-      nome: item.nome || `Dispositivo ${index + 1}`,
+      id: item.id || item.Codigo || String(index + 1).padStart(4, "0"),
+      nome: item.nome || item.Nome || `Dispositivo ${index + 1}`,
       statusDispositivo:
         item.statusDispositivo ||
-        (item.conexaoAtiva ? "online" : "offline"),
-      conexaoAtiva: Boolean(item.conexaoAtiva),
+        (item.conexaoAtiva || item.Status ? "online" : "offline"),
+      conexaoAtiva: Boolean(item.conexaoAtiva ?? item.Status ?? true),
       travaLiberada: Boolean(item.travaLiberada),
-      ultimaAtualizacao: item.ultimaAtualizacao,
-
+      ultimaAtualizacao: item.ultimaAtualizacao || new Date().toISOString(),
       sensores: {
-        temperatura: Number(item.sensores.temperatura ?? 0),
-        pressao: Number(item.sensores.pressao ?? 0),
-        umidade: Number(item.sensores.umidade ?? 0),
-        sensorPresenca: Boolean(item.sensores.sensorPresenca),
-        releSeguranca: Boolean(item.sensores.releSeguranca),
+        temperatura: Number(dadosSensores.temperatura ?? dadosSensores.Temperatura ?? 0),
+        pressao: Number(dadosSensores.pressao ?? dadosSensores.Pressão ?? dadosSensores.pressao ?? 0),
+        umidade: Number(dadosSensores.umidade ?? dadosSensores.Umidade ?? 0),
+        sensorPresenca: Boolean(dadosSensores.sensorPresenca ?? dadosSensores.Status ?? false),
+        releSeguranca: Boolean(dadosSensores.releSeguranca ?? false),
       },
     };
   }
 
   return {
-    // Ajustado para manter o padrão puro de 4 dígitos de 0001 a 9999
-    id: item?.Codigo || String(index + 1).padStart(4, "0"),
-
-    nome: item?.Sensor
-      ? `Dispositivo ${item.Sensor}`
-      : `Dispositivo ${index + 1}`,
-
+    id: item?.id || item?.Codigo || String(index + 1).padStart(4, "0"),
+    nome: item?.Sensor ? `Dispositivo ${item.Sensor}` : `Dispositivo ${index + 1}`,
     statusDispositivo: item?.Status ? "online" : "offline",
-
     conexaoAtiva: Boolean(item?.Status),
-
     travaLiberada: false,
-
     ultimaAtualizacao: new Date().toISOString(),
-
     sensores: {
       temperatura: item?.Sensor === "Temperatura" ? 25 : 0,
       pressao: item?.Sensor === "Pressão" ? 2.4 : 0,
@@ -152,11 +143,9 @@ export default function Home() {
     }
   };
 
-  // Inicializa o estado para um novo dispositivo limpo com ID formatado (0001 - 9999)
   const iniciarCriacao = () => {
-    setIdEmEdicao(null); // Fecha qualquer edição aberta
+    setIdEmEdicao(null);
     setNovoDispositivo({
-      // Alterado aqui: Sem prefixo 'EQP-', agora gera apenas o número sequencial com 4 dígitos
       id: String(dadosBackend.length + 1).padStart(4, "0"),
       nome: "Novo Equipamento",
       statusDispositivo: "online",
@@ -190,11 +179,15 @@ export default function Home() {
 
       const respostaJSON = await resposta.json();
       
-      setDadosBackend((estadoAnterior) => [
-        formatarDispositivo(respostaJSON, estadoAnterior.length),
-        ...estadoAnterior,
-      ]);
+      // BLINDAGEM: Se a resposta do backend vier vazia ou mal formatada,
+      // usamos os dados que estão na tela (estruturaEnvio) como plano B.
+      const dadosParaFormatar = respostaJSON && (respostaJSON.id || respostaJSON.sensores || respostaJSON.Sensor)
+        ? respostaJSON 
+        : estruturaEnvio;
 
+      const itemFormatado = formatarDispositivo(dadosParaFormatar, dadosBackend.length);
+
+      setDadosBackend((estadoAnterior) => [itemFormatado, ...estadoAnterior]);
       setCriandoNovo(false);
     } catch (error) {
       console.error("Erro ao criar dispositivo:", error);
@@ -204,7 +197,7 @@ export default function Home() {
   };
 
   const iniciarEdicao = (dispositivo: Dispositivo) => {
-    setCriandoNovo(false); // Fecha a criação se estiver aberta
+    setCriandoNovo(false);
     setIdEmEdicao(dispositivo.id);
     setValoresEditados({ ...dispositivo });
   };
@@ -289,6 +282,7 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-slate-100 text-slate-900">
       <section className="max-w-7xl mx-auto px-6 py-10">
+        
         {/* Topo da página */}
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
           <div>
@@ -352,7 +346,7 @@ export default function Home() {
               </button>
               <button
                 onClick={() => setCriandoNovo(false)}
-                className="px-2.5 py-1 rounded bg-emerald-50 text-emerald-700 text-xs font-semibold hover:bg-emerald-100 transition-colors active:scale-95"
+                className="px-2.5 py-1 rounded bg-emerald-55 text-emerald-700 text-xs font-semibold hover:bg-emerald-100 transition-colors active:scale-95"
               >
                 Cancelar
               </button>
@@ -375,16 +369,23 @@ export default function Home() {
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  {/* Temperatura */}
                   <div className="rounded-xl bg-slate-50 p-4">
                     <p className="text-sm text-slate-500">Temperatura</p>
                     <div className="flex items-center gap-1 mt-1">
                       <input
                         type="number"
                         step="0.1"
-                        value={novoDispositivo.sensores?.temperatura ?? 0}
+                        value={novoDispositivo.sensores?.temperatura ?? ""}
                         onChange={(e) => setNovoDispositivo({
                           ...novoDispositivo,
-                          sensores: { ...novoDispositivo.sensores!, temperatura: Number(e.target.value) }
+                          sensores: {
+                            temperatura: Number(e.target.value),
+                            pressao: novoDispositivo.sensores?.pressao ?? 0,
+                            umidade: novoDispositivo.sensores?.umidade ?? 0,
+                            sensorPresenca: novoDispositivo.sensores?.sensorPresenca ?? false,
+                            releSeguranca: novoDispositivo.sensores?.releSeguranca ?? false,
+                          }
                         })}
                         className="w-20 text-xl font-bold bg-white border border-slate-300 rounded px-1.5 py-0.5"
                       />
@@ -392,16 +393,23 @@ export default function Home() {
                     </div>
                   </div>
 
+                  {/* Pressão */}
                   <div className="rounded-xl bg-slate-50 p-4">
                     <p className="text-sm text-slate-500">Pressão</p>
                     <div className="flex items-center gap-1 mt-1">
                       <input
                         type="number"
                         step="0.1"
-                        value={novoDispositivo.sensores?.pressao ?? 0}
+                        value={novoDispositivo.sensores?.pressao ?? ""}
                         onChange={(e) => setNovoDispositivo({
                           ...novoDispositivo,
-                          sensores: { ...novoDispositivo.sensores!, pressao: Number(e.target.value) }
+                          sensores: {
+                            temperatura: novoDispositivo.sensores?.temperatura ?? 0,
+                            pressao: Number(e.target.value),
+                            umidade: novoDispositivo.sensores?.umidade ?? 0,
+                            sensorPresenca: novoDispositivo.sensores?.sensorPresenca ?? false,
+                            releSeguranca: novoDispositivo.sensores?.releSeguranca ?? false,
+                          }
                         })}
                         className="w-20 text-xl font-bold bg-white border border-slate-300 rounded px-1.5 py-0.5"
                       />
@@ -409,15 +417,22 @@ export default function Home() {
                     </div>
                   </div>
 
+                  {/* Umidade */}
                   <div className="rounded-xl bg-slate-50 p-4">
                     <p className="text-sm text-slate-500">Umidade</p>
                     <div className="flex items-center gap-1 mt-1">
                       <input
                         type="number"
-                        value={novoDispositivo.sensores?.umidade ?? 0}
+                        value={novoDispositivo.sensores?.umidade ?? ""}
                         onChange={(e) => setNovoDispositivo({
                           ...novoDispositivo,
-                          sensores: { ...novoDispositivo.sensores!, umidade: Number(e.target.value) }
+                          sensores: {
+                            temperatura: novoDispositivo.sensores?.temperatura ?? 0,
+                            pressao: novoDispositivo.sensores?.pressao ?? 0,
+                            umidade: Number(e.target.value),
+                            sensorPresenca: novoDispositivo.sensores?.sensorPresenca ?? false,
+                            releSeguranca: novoDispositivo.sensores?.releSeguranca ?? false,
+                          }
                         })}
                         className="w-20 text-xl font-bold bg-white border border-slate-300 rounded px-1.5 py-0.5"
                       />
@@ -445,7 +460,7 @@ export default function Home() {
             return (
               <div key={item.id} className="relative group">
                 
-                {/* Botões de Ação no Canto Superior Direito */}
+                {/* Botões de Ação */}
                 <div className="absolute top-3 right-3 z-10 flex gap-2">
                   {!estáEditando ? (
                     <>
@@ -541,7 +556,7 @@ export default function Home() {
                             <span className="font-bold">°C</span>
                           </div>
                         ) : (
-                          <p className="text-2xl font-bold">{item.sensores.temperatura.toFixed(1)} K</p>
+                          <p className="text-2xl font-bold">{item.sensores.temperatura.toFixed(1)} °C</p>
                         )}
                       </div>
 
